@@ -1,0 +1,20 @@
+[
+  {
+    "name": "MinIO",
+    "health": "http://127.0.0.1:9000/minio/health/live",
+    "ports": [
+      { "port": 9000, "label": "API" },
+      { "port": 9001, "label": "控制台" }
+    ]
+  },
+  {
+    "name": "测试服务",
+    "health": "http://127.0.0.1:5000/health",
+    "ports": [
+      { "port": 5000, "label": "后台" },
+      { "port": 8082, "label": "代理" },
+      { "port": 8083, "label": "抓包" },
+      { "port": 8899, "label": "API" }
+    ]
+  }
+]

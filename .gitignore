@@ -1,0 +1,4 @@
+# 打包结果不进仓库。exe 由打 tag 后的 GitHub Actions 发布到 Release。
+*.exe
+dist/
+src/EmbeddedJson.cs

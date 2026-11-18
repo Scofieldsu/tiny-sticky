@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Self-test
+        shell: pwsh
+        run: ./dist/TinySticky.exe --self-test
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            "dist/TinySticky.exe#TinySticky.exe" `
+            "dist/services.json#services.json" `
+            --title "${{ github.ref_name }}" `
+            --notes "Tiny Sticky ${{ github.ref_name }}。下载 TinySticky.exe 后直接运行；需要改清单时把 services.json 放在 exe 旁边。"
