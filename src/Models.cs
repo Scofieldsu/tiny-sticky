@@ -68,17 +68,22 @@ namespace TinySticky {
     internal sealed class WindowSettings {
         public int x { get; set; }
         public int y { get; set; }
+        public int width { get; set; }
+        public int height { get; set; }
         public bool hasPosition { get; set; }
+        public bool hasSize { get; set; }
         public double opacity { get; set; }
         public bool topMost { get; set; }
         public bool clickThrough { get; set; }
         public bool collapsed { get; set; }
+        public string theme { get; set; }
 
         public static WindowSettings CreateDefault() {
             return new WindowSettings {
                 opacity = 0.88,
                 topMost = true,
-                collapsed = false
+                collapsed = false,
+                theme = "yellow"
             };
         }
     }

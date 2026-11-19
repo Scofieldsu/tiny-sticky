@@ -61,6 +61,88 @@ namespace TinySticky {
             return load;
         }
 
+        internal static void Upsert(string path, string name, IList<int> ports) {
+            if (string.IsNullOrWhiteSpace(path)) throw new InvalidOperationException("没有可写的清单");
+            name = (name ?? "").Trim();
+            if (name.Length == 0) throw new InvalidOperationException("名字是空的");
+            if (ports == null || ports.Count == 0) throw new InvalidOperationException("没有端口");
+            List<ServiceDefinition> services;
+            if (File.Exists(path)) {
+                CatalogLoad load = Parse(File.ReadAllText(path), path, null);
+                if (!string.IsNullOrEmpty(load.Error)) throw new InvalidOperationException(load.Error);
+                services = load.Services;
+            } else {
+                services = Parse(EmbeddedJson.Text, null, null).Services;
+            }
+            var wanted = new HashSet<int>();
+            foreach (int port in ports) {
+                if (port >= 1 && port <= 65535) wanted.Add(port);
+            }
+            if (wanted.Count == 0) throw new InvalidOperationException("没有端口");
+            ServiceDefinition found = null;
+            foreach (ServiceDefinition svc in services) {
+                if (SamePorts(svc, wanted)) {
+                    found = svc;
+                    break;
+                }
+            }
+            if (found != null) {
+                found.name = name;
+            } else {
+                var created = new ServiceDefinition();
+                created.name = name;
+                created.ports = new List<PortDefinition>();
+                foreach (int port in wanted) created.ports.Add(new PortDefinition { port = port, label = "" });
+                services.Add(created);
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            string text = Format(services);
+            string tmp = path + ".tmp";
+            File.WriteAllText(tmp, text, new UTF8Encoding(true));
+            if (File.Exists(path)) File.Replace(tmp, path, null);
+            else File.Move(tmp, path);
+        }
+
+        static bool SamePorts(ServiceDefinition svc, HashSet<int> ports) {
+            if (svc.ports == null || svc.ports.Count != ports.Count) return false;
+            foreach (PortDefinition port in svc.ports) {
+                if (!ports.Contains(port.port)) return false;
+            }
+            return true;
+        }
+
+        static string Format(List<ServiceDefinition> services) {
+            var sb = new StringBuilder();
+            sb.Append("[\n");
+            for (int i = 0; i < services.Count; i++) {
+                ServiceDefinition svc = services[i];
+                sb.Append("  {\n");
+                sb.Append("    \"name\": \"").Append(Esc(svc.name)).Append("\"");
+                if (!string.IsNullOrWhiteSpace(svc.health))
+                    sb.Append(",\n    \"health\": \"").Append(Esc(svc.health.Trim())).Append("\"");
+                sb.Append(",\n    \"ports\": [\n");
+                for (int p = 0; p < svc.ports.Count; p++) {
+                    PortDefinition port = svc.ports[p];
+                    sb.Append("      { \"port\": ").Append(port.port);
+                    if (!string.IsNullOrWhiteSpace(port.label))
+                        sb.Append(", \"label\": \"").Append(Esc(port.label.Trim())).Append("\"");
+                    sb.Append(" }");
+                    if (p + 1 < svc.ports.Count) sb.Append(",");
+                    sb.Append("\n");
+                }
+                sb.Append("    ]\n  }");
+                if (i + 1 < services.Count) sb.Append(",");
+                sb.Append("\n");
+            }
+            sb.Append("]\n");
+            return sb.ToString();
+        }
+
+        static string Esc(string value) {
+            if (string.IsNullOrEmpty(value)) return "";
+            return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "");
+        }
+
         static ServiceDefinition Normalize(ServiceDefinition svc) {
             if (svc == null || string.IsNullOrWhiteSpace(svc.name) || svc.ports == null) return null;
             var ports = new List<PortDefinition>();

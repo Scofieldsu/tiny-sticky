@@ -39,6 +39,60 @@ namespace TinySticky {
         }
     }
 
+    internal static class SharedNote {
+        internal static string Load() {
+            string text = "";
+            DateTime newest = DateTime.MinValue;
+            bool found = false;
+            foreach (string path in Candidates()) {
+                try {
+                    if (!File.Exists(path)) continue;
+                    DateTime when = File.GetLastWriteTimeUtc(path);
+                    if (found && when < newest) continue;
+                    text = Clean(File.ReadAllText(path));
+                    newest = when;
+                    found = true;
+                } catch {
+                }
+            }
+            return found ? text : "";
+        }
+
+        internal static void Save(string text) {
+            text = Clean(text);
+            int wrote = 0;
+            Exception last = null;
+            foreach (string path in Candidates()) {
+                try {
+                    string dir = Path.GetDirectoryName(path);
+                    if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                    File.WriteAllText(path, text, new UTF8Encoding(false));
+                    wrote++;
+                } catch (Exception ex) {
+                    last = ex;
+                }
+            }
+            if (wrote == 0) throw last ?? new IOException("提醒没有写进去");
+        }
+
+        static string[] Candidates() {
+            string common = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "TinySticky",
+                "note.txt");
+            string beside = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "note.txt");
+            return new[] { common, @"C:\srv\sticky-note.txt", beside };
+        }
+
+        static string Clean(string text) {
+            if (string.IsNullOrWhiteSpace(text)) return "";
+            text = text.Replace('\r', ' ').Replace('\n', ' ').Trim();
+            while (text.Contains("  ")) text = text.Replace("  ", " ");
+            if (text.Length > 200) text = text.Substring(0, 200);
+            return text;
+        }
+    }
+
     internal static class StartupShortcut {
         static string LinkPath {
             get {
